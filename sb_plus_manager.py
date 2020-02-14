@@ -1,3 +1,9 @@
+__author__ = "Chanhee Jo"
+__copyright__ = "Copyright 2020, SB Plus Co.,Ltd"
+__license__ = "GPL"
+__version__ = "1.0.0"
+__email__ = "teletovy@gmail.com, decision_1@naver.com"
+
 import sys
 import os
 import openpyxl
