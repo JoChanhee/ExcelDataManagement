@@ -1,6 +1,8 @@
 # DataManagementSystem
 ### Data management system using pyqt5
-
+* python 3.5.6
+* pyqt5 5.14.1
+* Detailed specifications are listed in the requirements.txt.
 
 ### Client
 ##### Efficient data management using this system.

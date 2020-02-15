@@ -1,0 +1,11 @@
+certifi==2018.8.24
+Click==7.0
+et-xmlfile==1.0.1
+jdcal==1.4.1
+openpyxl==2.6.4
+PyQt5==5.14.1
+PyQt5-sip==12.7.1
+pyqt5-tools==5.13.0.1.5
+PyQtChart==5.14.0
+python-dotenv==0.10.5
+wincertstore==0.2
