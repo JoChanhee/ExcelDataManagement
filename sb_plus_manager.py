@@ -7,7 +7,6 @@ __email__ = "teletovy@gmail.com, decision_1@naver.com"
 import sys
 import os
 import openpyxl
-import enum
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
 from PyQt5.QtGui import *
@@ -16,44 +15,18 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtChart import QChart, QChartView, QBarSet, QBarSeries, QPercentBarSeries, QBarCategoryAxis
 from PyQt5.QtGui import QPainter
 
+from model.data_type import DataType, SupplierType, SheetType, ItemAttribute
+from statistics_manager import StatisticsManager, REMAIN_COUNT
+
 # Data path
 UI_PATH = "sb_plus_ui.ui"
 DATA_PATH = "sb_plus_management_2020.xlsx"
 BACKUP_DATA_PATH = "sb_plus_management_2020_backup.xlsx"
 
-# Item attribute
-INPUT_OUTPUT = "input_output"
-MPN = "mpn"
-COUNT = "count"
-PRICE = "price"
-
-# Item statistics refinement attribute
-INPUT_AVG_PRICE = "입고 단가"    # "input_avg_price"
-INPUT_ITEM_NUM = "입고 수량"     # "input_item_num"
-OUTPUT_AVG_PRICE = "출고 단가"   # "output_avg_price"
-OUTPUT_ITEM_NUM = "출고 수량"    # "output_item_num"
-
-# Item statistics output attribute
-REMAIN_COUNT = "재고 수량"   # "remain_count"
-PROFIT = "순이익"                # "profit"
-TOTAL_PRICE = "총 재고 단가"  # "total_price"
 
 #UI파일 연결
 #단, UI파일은 Python 코드 파일과 같은 디렉토리에 위치해야한다.
 form_class = uic.loadUiType(UI_PATH)[0]
-
-class DataType(enum.Enum):
-    INPUT = "입고"   # 입고
-    OUTPUT = "출고"   # 출고
-
-class SheetType(enum.Enum):
-    MANAGEMENT = "management_info"
-    SUPPLIER = "supplier_info"
-    ITEM = "item_info"
-
-class SupplierType(enum.Enum):
-    SUPPLIER = "Supplier"
-    CUSTOMER = "Customer"
 
 #화면을 띄우는데 사용되는 Class 선언
 class WindowClass(QMainWindow, form_class) :
@@ -70,8 +43,11 @@ class WindowClass(QMainWindow, form_class) :
             self.supplierTableWidget, SheetType.SUPPLIER)
         self.item_sheet, self.item_header, self.item_contents = self.init_data_with_sheet_type(self.itemTableWidget, SheetType.ITEM)
 
-        self.init_data_with_dict(self.statisticsTableWidget, dict=self.get_item_statistics_dict())
 
+        # Manager
+        self.statistics_manager = StatisticsManager(header=self.management_header, contents=self.management_contents)
+
+        self.init_data_with_dict(self.statisticsTableWidget, dict=self.statistics_manager.get_item_statistics_dict())
 
         # UI
         self.make_logo()
@@ -115,6 +91,8 @@ class WindowClass(QMainWindow, form_class) :
         widget.setRowCount(len(contents))
         widget.setHorizontalHeaderLabels(headers)
 
+        widget.resizeRowsToContents()
+
         for row_idx, content in enumerate(contents):
             for col_idx, item in enumerate(content):
                 qItem = QTableWidgetItem(str(item))
@@ -132,7 +110,7 @@ class WindowClass(QMainWindow, form_class) :
             content = []
 
             if not is_initialized_header:
-                headers.append("MPN")
+                headers.append(ItemAttribute.MPN.value)
             content.append(key)
 
             for value_key, value_value in value.items():
@@ -149,8 +127,13 @@ class WindowClass(QMainWindow, form_class) :
         widget.setRowCount(len(contents))
         widget.setHorizontalHeaderLabels(headers)
 
+        widget.resizeRowsToContents()
+
         for row_idx, content in enumerate(contents):
             for col_idx, item in enumerate(content):
+                if self.is_number(item):
+                    item = int(item)
+
                 qItem = QTableWidgetItem(str(item))
                 widget.setItem(row_idx, col_idx, qItem)
 
@@ -169,6 +152,7 @@ class WindowClass(QMainWindow, form_class) :
 
         self.excel_document.save(DATA_PATH)
 
+        self.onChangedManagement()
         self.onChangedSupplier()
 
     def add_content_into_supplier_table(self, content):
@@ -303,7 +287,7 @@ class WindowClass(QMainWindow, form_class) :
             content.append(targetText)
 
         for dataTypeIdx, item in enumerate(self.management_header):
-            if item == INPUT_OUTPUT:
+            if item == ItemAttribute.INPUT_OUTPUT.value:
                 content.insert(dataTypeIdx, eDataType.value)
 
         return content
@@ -351,9 +335,9 @@ class WindowClass(QMainWindow, form_class) :
         mpn_idx = 0
         data_type_idx = 2
         for idx, attribute in enumerate(self.management_header):
-            if attribute == INPUT_OUTPUT:
+            if attribute == ItemAttribute.INPUT_OUTPUT.value:
                 data_type_idx = idx
-            if attribute == MPN:
+            if attribute == ItemAttribute.MPN.value:
                 mpn_idx = idx
 
 
@@ -368,64 +352,6 @@ class WindowClass(QMainWindow, form_class) :
         for item in self.item_contents:
             if item[0] == mpn:
                 return item
-
-    def get_item_statistics_dict(self, target_mpn=None):
-        mpn_idx = 0
-        data_type_idx = 2
-        count_idx = 5
-        price_idx = 6
-        for idx, attribute in enumerate(self.management_header):
-            if attribute == INPUT_OUTPUT:
-                data_type_idx = idx
-            elif attribute == MPN:
-                mpn_idx = idx
-            elif attribute == COUNT:
-                count_idx = idx
-            elif attribute == PRICE:
-                price_idx = idx
-
-        item_dict = {}
-        for item in self.management_contents:
-            # Input data
-            key = item[mpn_idx]
-            count = item[count_idx]
-            price = item[price_idx]
-
-            # construct only target mpn dict
-            if target_mpn is not None and key != target_mpn:
-                continue
-
-            # Data Initialization
-            if key not in item_dict:
-                value = {}
-                value[REMAIN_COUNT] = 0
-                value[PROFIT] = 0.0
-                value[INPUT_AVG_PRICE] = 0.0
-                value[INPUT_ITEM_NUM] = 0
-                value[OUTPUT_AVG_PRICE] = 0.0
-                value[OUTPUT_ITEM_NUM] = 0
-
-                item_dict[key] = value
-
-            # Data refinement / Output data
-            if item[data_type_idx] == DataType.INPUT.value:
-                item_dict[key][INPUT_AVG_PRICE] += (count * price)
-                item_dict[key][INPUT_ITEM_NUM] += count
-            elif item[data_type_idx] == DataType.OUTPUT.value:
-                item_dict[key][OUTPUT_AVG_PRICE] += (count * price)
-                item_dict[key][OUTPUT_ITEM_NUM] += count
-
-        for key, value in item_dict.items():
-            if item_dict[key][INPUT_ITEM_NUM] != 0:
-                item_dict[key][INPUT_AVG_PRICE] = item_dict[key][INPUT_AVG_PRICE] / float(item_dict[key][INPUT_ITEM_NUM])
-            if item_dict[key][OUTPUT_ITEM_NUM] != 0:
-                item_dict[key][OUTPUT_AVG_PRICE] = item_dict[key][OUTPUT_AVG_PRICE] / float(item_dict[key][OUTPUT_ITEM_NUM])
-
-            item_dict[key][REMAIN_COUNT] = item_dict[key][INPUT_ITEM_NUM] - item_dict[key][OUTPUT_ITEM_NUM]
-            item_dict[key][TOTAL_PRICE] = item_dict[key][INPUT_AVG_PRICE] * item_dict[key][REMAIN_COUNT]
-            item_dict[key][PROFIT] = (item_dict[key][OUTPUT_AVG_PRICE] - item_dict[key][INPUT_AVG_PRICE]) * item_dict[key][OUTPUT_ITEM_NUM]
-
-        return item_dict
 
 
 # Callback functions
@@ -473,7 +399,7 @@ class WindowClass(QMainWindow, form_class) :
 
         self.add_content_into_search_tables(input_contents, output_contents)
 
-        self.init_data_with_dict(self.statisticsTableWidget_2, self.get_item_statistics_dict(target_mpn))
+        self.init_data_with_dict(self.statisticsTableWidget_2, self.statistics_manager.get_item_statistics_dict(target_mpn))
 
 
     def onEnterMpnEdit(self):
@@ -549,7 +475,7 @@ class WindowClass(QMainWindow, form_class) :
         chart.setTitle("현재 재고 현황")
         chart.setAnimationOptions(QChart.SeriesAnimations)
 
-        item_statistics_dict = self.get_item_statistics_dict()
+        item_statistics_dict = self.statistics_manager.get_item_statistics_dict()
         categories = ["2020년"]
 
         series = QBarSeries()
@@ -580,12 +506,14 @@ class WindowClass(QMainWindow, form_class) :
     def onChangedSupplier(self):
         self.clear_comboBox()
         self.make_comboBox()
-        self.update_bar_chart()
 
     def onChangedItem(self):
         self.make_mpn_completer()
         self.update_bar_chart()
 
+    def onChangedManagement(self):
+        self.init_data_with_dict(self.statisticsTableWidget, dict=self.statistics_manager.get_item_statistics_dict())
+        self.update_bar_chart()
 
 if __name__ == "__main__" :
     #QApplication : 프로그램을 실행시켜주는 클래스
