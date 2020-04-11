@@ -76,13 +76,20 @@ class WindowClass(QMainWindow, form_class) :
         headers = []
         contents = []
 
+        mpn_idx = -1
+
         for y, rows in enumerate(data):
             content = []
             for x, col in enumerate(rows):
                 if y == 0:
                     headers.append(col.value)
+                    if col.value == ItemAttribute.MPN.value:
+                        mpn_idx = x
                 else:
-                    content.append(col.value)
+                    if x == mpn_idx:
+                        content.append(str(col.value))
+                    else:
+                        content.append(col.value)
 
             if len(content) != 0:
                 contents.append(content)
@@ -111,11 +118,11 @@ class WindowClass(QMainWindow, form_class) :
 
             if not is_initialized_header:
                 headers.append(ItemAttribute.MPN.value)
-            content.append(key)
+            content.append(str(key))
 
             for value_key, value_value in value.items():
                 if not is_initialized_header:
-                    headers.append(value_key)
+                    headers.append(str(value_key))
                 content.append(value_value)
 
             is_initialized_header = True
@@ -131,7 +138,7 @@ class WindowClass(QMainWindow, form_class) :
 
         for row_idx, content in enumerate(contents):
             for col_idx, item in enumerate(content):
-                if self.is_number(item):
+                if col_idx != 0 and self.is_number(item):   # col_idx = mpn_idx
                     item = int(item)
 
                 qItem = QTableWidgetItem(str(item))
@@ -251,6 +258,12 @@ class WindowClass(QMainWindow, form_class) :
         except ValueError:
             return False
 
+    def is_mpn_edit_box(self, editBox):
+        if 'editMpn' in editBox.objectName():
+            return True
+
+        return False
+
     def is_empty_supplier_radio(self):
         bSupplier = self.supplierRadio.isChecked()
         bCustomer = self.customerRadio.isChecked()
@@ -277,11 +290,17 @@ class WindowClass(QMainWindow, form_class) :
         content = []
         for editBox in editBoxes:
             targetText = ""
+
+            # get text with box type
             if editBox.__class__ == QComboBox:
                 targetText = editBox.currentText()
             else:
                 targetText = editBox.text()
-            if self.is_number(targetText):
+
+            # set value type with info ( mpn? / number? )
+            if self.is_mpn_edit_box(editBox):
+                targetText = str(targetText)
+            elif self.is_number(targetText):
                 targetText = float(targetText)
 
             content.append(targetText)
@@ -316,8 +335,11 @@ class WindowClass(QMainWindow, form_class) :
                 targetText = editBox.currentText()
             else:
                 targetText = editBox.text()
-            if self.is_number(targetText):
-                targetText = float(targetText)
+
+                if self.is_mpn_edit_box(editBox):
+                    targetText = str(targetText)
+                elif self.is_number(targetText):
+                    targetText = float(targetText)
 
             content.append(targetText)
 
@@ -403,7 +425,7 @@ class WindowClass(QMainWindow, form_class) :
 
 
     def onEnterMpnEdit(self):
-        item_info = self.get_item_info_with_mpn(self.editMpn.text())
+        item_info = self.get_item_info_with_mpn(str(self.editMpn.text()))
         self.editPartName.setText(item_info[1])
         index = self.editSupplier.findText(item_info[2], Qt.MatchFixedString)
         if index >= 0:
@@ -411,10 +433,10 @@ class WindowClass(QMainWindow, form_class) :
         self.editPrice.setText(str(item_info[3]))
 
     def onEnterMpnEdit_2(self):
-        item_info = self.get_item_info_with_mpn(self.editMpn_2.text())
+        item_info = self.get_item_info_with_mpn(str(self.editMpn_2.text()))
         self.editPartName_2.setText(item_info[1])
 
-        item_list = self.get_item_list_with_mpn(self.editMpn_2.text(), DataType.OUTPUT)
+        item_list = self.get_item_list_with_mpn(str(self.editMpn_2.text()), DataType.OUTPUT)
         supplier_text = item_info[2]
         if len(item_list) > 0:
             supplier_text = item_list[-1][3]
@@ -429,7 +451,7 @@ class WindowClass(QMainWindow, form_class) :
     def make_mpn_completer(self):
         mpn_list = []
         for content in self.item_contents:
-            mpn_list.append(content[0])
+            mpn_list.append(str(content[0]))
 
         model = QStringListModel()
         model.setStringList(mpn_list)

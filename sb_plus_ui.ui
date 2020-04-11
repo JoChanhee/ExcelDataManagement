@@ -31,7 +31,10 @@
     </font>
    </property>
    <property name="currentIndex">
-    <number>2</number>
+    <number>0</number>
+   </property>
+   <property name="elideMode">
+    <enum>Qt::ElideLeft</enum>
    </property>
    <widget class="QWidget" name="inputOutputTab">
     <attribute name="title">
@@ -1029,7 +1032,7 @@
      <bool>true</bool>
     </property>
     <attribute name="title">
-     <string>통계</string>
+     <string>전체통계</string>
     </attribute>
     <widget class="QTableWidget" name="statisticsTableWidget">
      <property name="geometry">
@@ -1101,7 +1104,7 @@
     <string>TextLabel</string>
    </property>
   </widget>
-  <widget class="QLabel" name="label_14">
+  <widget class="QLabel" name="titleLabel">
    <property name="geometry">
     <rect>
      <x>160</x>
