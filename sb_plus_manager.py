@@ -7,6 +7,9 @@ __email__ = "teletovy@gmail.com, decision_1@naver.com"
 import sys
 import os
 import openpyxl
+import locale
+import datetime
+
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
 from PyQt5.QtGui import *
@@ -18,11 +21,14 @@ from PyQt5.QtGui import QPainter
 from model.data_type import DataType, SupplierType, SheetType, ItemAttribute
 from statistics_manager import StatisticsManager, REMAIN_COUNT
 
+locale.setlocale(locale.LC_ALL, '')
+
 # Data path
 UI_PATH = "sb_plus_ui.ui"
 DATA_PATH = "sb_plus_management_2020.xlsx"
 BACKUP_DATA_PATH = "sb_plus_management_2020_backup.xlsx"
 
+MPN_IDX = 0 #TODO::Need to get index from header
 
 #UI파일 연결
 #단, UI파일은 Python 코드 파일과 같은 디렉토리에 위치해야한다.
@@ -102,8 +108,12 @@ class WindowClass(QMainWindow, form_class) :
 
         for row_idx, content in enumerate(contents):
             for col_idx, item in enumerate(content):
-                qItem = QTableWidgetItem(str(item))
-                widget.setItem(row_idx, col_idx, qItem)
+                if col_idx != MPN_IDX and self.is_number(item):   # col_idx = mpn_idx
+                    item = locale.format("%2.f", float(item), 1)
+                else:
+                    item = str(item)
+
+                widget.setItem(row_idx, col_idx, QTableWidgetItem(item))
 
         return sheet, headers, contents
 
@@ -138,11 +148,12 @@ class WindowClass(QMainWindow, form_class) :
 
         for row_idx, content in enumerate(contents):
             for col_idx, item in enumerate(content):
-                if col_idx != 0 and self.is_number(item):   # col_idx = mpn_idx
-                    item = int(item)
+                if col_idx != MPN_IDX and self.is_number(item):   # col_idx = mpn_idx
+                    item = locale.format("%2.f", float(item), 1)
+                else:
+                    item = str(item)
 
-                qItem = QTableWidgetItem(str(item))
-                widget.setItem(row_idx, col_idx, qItem)
+                widget.setItem(row_idx, col_idx, QTableWidgetItem(item))
 
 
 # Management funcitons
@@ -154,15 +165,17 @@ class WindowClass(QMainWindow, form_class) :
         self.management_sheet.append(content)
 
         for col_idx, item in enumerate(content):
-            qItem = QTableWidgetItem(str(item))
-            self.tableWidget.setItem(last_row_idx, col_idx, qItem)
+            if col_idx != MPN_IDX and self.is_number(item):  # col_idx = mpn_idx
+                item = locale.format("%2.f", float(item), 1)
+
+            self.tableWidget.setItem(last_row_idx, col_idx, QTableWidgetItem(item))
 
         self.excel_document.save(DATA_PATH)
 
         self.onChangedManagement()
         self.onChangedSupplier()
 
-    def add_content_into_supplier_table(self, content):
+    def add_content_into_supplier_table(self, content): # mpn is not exist in supplier table
         last_row_idx = len(self.supplier_contents)
         self.supplierTableWidget.setRowCount(last_row_idx + 1)
 
@@ -170,8 +183,7 @@ class WindowClass(QMainWindow, form_class) :
         self.supplier_sheet.append(content)
 
         for col_idx, item in enumerate(content):
-            qItem = QTableWidgetItem(str(item))
-            self.supplierTableWidget.setItem(last_row_idx, col_idx, qItem)
+            self.supplierTableWidget.setItem(last_row_idx, col_idx, QTableWidgetItem(item))
 
         self.excel_document.save(DATA_PATH)
 
@@ -185,8 +197,10 @@ class WindowClass(QMainWindow, form_class) :
         self.item_sheet.append(content)
 
         for col_idx, item in enumerate(content):
-            qItem = QTableWidgetItem(str(item))
-            self.itemTableWidget.setItem(last_row_idx, col_idx, qItem)
+            if col_idx != MPN_IDX and self.is_number(item):  # col_idx = mpn_idx
+                item = locale.format("%2.f", float(item), 1)
+
+            self.itemTableWidget.setItem(last_row_idx, col_idx, QTableWidgetItem(item))
 
         self.excel_document.save(DATA_PATH)
 
@@ -207,13 +221,17 @@ class WindowClass(QMainWindow, form_class) :
 
         for row_idx, content in enumerate(input_contents):
             for col_idx, item in enumerate(content):
-                qItem = QTableWidgetItem(str(item))
-                self.searchTableWidget.setItem(row_idx, col_idx, qItem)
+                if col_idx != MPN_IDX and self.is_number(item):  # col_idx = mpn_idx
+                    item = locale.format("%2.f", float(item), 1)
+
+                self.searchTableWidget.setItem(row_idx, col_idx, QTableWidgetItem(item))
 
         for row_idx, content in enumerate(output_contents):
             for col_idx, item in enumerate(content):
-                qItem = QTableWidgetItem(str(item))
-                self.searchTableWidget_2.setItem(row_idx, col_idx, qItem)
+                if col_idx != MPN_IDX and self.is_number(item):  # col_idx = mpn_idx
+                    item = locale.format("%2.f", float(item), 1)
+
+                self.searchTableWidget_2.setItem(row_idx, col_idx, QTableWidgetItem(item))
 
 
 # Check functions
@@ -252,6 +270,10 @@ class WindowClass(QMainWindow, form_class) :
         return False
 
     def is_number(self, number):
+        if number is None:
+            return False
+        if isinstance(number, datetime.datetime):
+            return False
         try:
             float(number)
             return True
@@ -426,7 +448,7 @@ class WindowClass(QMainWindow, form_class) :
 
     def onEnterMpnEdit(self):
         item_info = self.get_item_info_with_mpn(str(self.editMpn.text()))
-        self.editPartName.setText(item_info[1])
+        self.editPartName.setText(str(item_info[1]))
         index = self.editSupplier.findText(item_info[2], Qt.MatchFixedString)
         if index >= 0:
             self.editSupplier.setCurrentIndex(index)
@@ -434,7 +456,7 @@ class WindowClass(QMainWindow, form_class) :
 
     def onEnterMpnEdit_2(self):
         item_info = self.get_item_info_with_mpn(str(self.editMpn_2.text()))
-        self.editPartName_2.setText(item_info[1])
+        self.editPartName_2.setText(str(item_info[1]))
 
         item_list = self.get_item_list_with_mpn(str(self.editMpn_2.text()), DataType.OUTPUT)
         supplier_text = item_info[2]
